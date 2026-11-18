@@ -151,24 +151,48 @@
     // Aloqa: admin kiritgan platformalar ikonlar bilan
     const links = $('links');
     const svg = (c) => {
+      if (c.img) { const i = new Image(); i.src = c.img; i.alt = ''; i.className = 'brand-img'; return i; }
       const ns = 'http://www.w3.org/2000/svg', v = document.createElementNS(ns, 'svg'), p = document.createElementNS(ns, 'path');
       v.setAttribute('viewBox', '0 0 24 24'); v.setAttribute('aria-hidden', 'true'); p.setAttribute('d', c.path); v.append(p); return v;
     };
+    // Toast
+    const toast = el('div', 'toast'); toast.setAttribute('role', 'status'); toast.hidden = true; document.body.append(toast);
+    let tt;
+    const say = (nodes, ms) => { toast.replaceChildren(...nodes); toast.hidden = false; clearTimeout(tt); if (ms) tt = setTimeout(() => (toast.hidden = true), ms); };
+    const copy = async (text) => {
+      try { await navigator.clipboard.writeText(text); return true; } catch {}
+      const t = document.createElement('textarea'); t.value = text; t.style.cssText = 'position:fixed;opacity:0'; document.body.append(t); t.select();
+      let ok = false; try { ok = document.execCommand('copy'); } catch {} t.remove(); return ok;
+    };
+    const KABUTAR = 'https://oq-kabutar.uz';
+    async function copyContact(x) {
+      const ok = await copy(x.value);
+      if (x.type !== 'kabutar') { say([document.createTextNode(ok ? `“${x.value}” nusxalandi ✓` : 'Nusxalab bo‘lmadi')], 3000); return; }
+      let n = 5;
+      const msg = el('span');
+      const draw = () => (msg.textContent = `${ok ? `“${x.value}” nusxalandi.` : 'Foydalanuvchi nomini qo‘lda nusxalang.'} ${n} soniyadan keyin Kabutar saytiga yo‘naltirilasiz — u yerdan ilovani o‘rnatishingiz mumkin.`);
+      draw(); say([msg]);
+      const iv = setInterval(() => {
+        if (--n > 0) return draw();
+        clearInterval(iv);
+        const w = window.open(KABUTAR, '_blank', 'noopener');
+        if (w) return (toast.hidden = true);
+        const l = el('a', 'toast-link', 'oq-kabutar.uz ni ochish →'); l.href = KABUTAR; l.target = '_blank'; l.rel = 'noopener'; // brauzer avtomatik ochishni bloklagan bo'lsa
+        say([el('span', null, 'Brauzer avtomatik ochishga ruxsat bermadi. '), l], 12000);
+      }, 1000);
+    }
     (d.contacts || []).forEach((x) => {
       const c = CONTACTS.byKey[x.type]; if (!c) return;
       const url = CONTACTS.href(x.type, x.value);
       const a = el(url ? 'a' : 'button', 'chip');
       a.style.setProperty('--brand', c.color);
-      const ico = el('span', 'ico'); ico.append(svg(c));
+      const ico = el('span', 'ico' + (c.img ? ' has-img' : '')); ico.append(svg(c));
       const txt = el('span', 'txt'); txt.append(el('b', null, c.label));
       const shown = ['phone', 'email', 'imo', 'kabutar'].includes(x.type) ? x.value : '';
       if (shown) txt.append(el('small', null, shown));
       a.append(ico, txt);
       if (url) { a.href = url; if (/^https?:/.test(url)) { a.target = '_blank'; a.rel = 'noopener'; } }
-      else { // imo / kabutar: havolasiz, bosilsa nusxalanadi
-        a.type = 'button'; a.title = 'Nusxalash';
-        a.onclick = () => { navigator.clipboard && navigator.clipboard.writeText(x.value).then(() => { const o = txt.lastChild.textContent; txt.lastChild.textContent = 'Nusxalandi ✓'; setTimeout(() => (txt.lastChild.textContent = o), 1500); }); };
-      }
+      else { a.type = 'button'; a.title = 'Nusxalash'; a.onclick = () => copyContact(x); } // imo / kabutar
       links.append(a);
     });
     if (!links.children.length) { $('contact').hidden = true; const na = document.querySelector('nav a[href="#contact"]'); if (na) na.hidden = true; }

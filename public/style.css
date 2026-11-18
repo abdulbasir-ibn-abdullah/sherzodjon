@@ -114,3 +114,9 @@ dialog::backdrop{background:rgba(0,0,0,.55);backdrop-filter:blur(4px)}
 .aud audio{width:100%;height:40px}
 .lightbox{padding:0;background:transparent;border:0;box-shadow:none;max-width:94vw}
 .lightbox img{max-width:94vw;max-height:88vh;display:block;border-radius:10px}
+.chip .ico.has-img{background:#fff;border:1px solid var(--line)}
+.brand-img{width:30px;height:30px;object-fit:contain;display:block}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:50;max-width:min(560px,92vw);padding:14px 20px;border-radius:14px;background:var(--ink);color:var(--bg);box-shadow:var(--shadow);font-size:.95rem;line-height:1.5;animation:fade .3s}
+@keyframes fade{from{opacity:0}}
+.toast[hidden]{display:none}
+.toast-link{color:inherit;font-weight:600}

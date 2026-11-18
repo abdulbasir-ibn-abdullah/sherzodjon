@@ -148,6 +148,7 @@
   }
 
   const icon = (c) => {
+    if (c.img) return el('img', { src: c.img, alt: '', style: 'width:24px;height:24px;object-fit:contain;flex:none' });
     const ns = 'http://www.w3.org/2000/svg', v = document.createElementNS(ns, 'svg'), p = document.createElementNS(ns, 'path');
     v.setAttribute('viewBox', '0 0 24 24'); p.setAttribute('d', c.path); p.setAttribute('fill', c.color); v.append(p); return v;
   };
@@ -159,7 +160,7 @@
       el('button', { type: 'button', className: 'pick', title: c.label + ' qo‘shish', onclick: () => {
         list.push({ id: 'c' + Date.now().toString(36), type: c.key, value: '' }); markDirty(); render();
         setTimeout(() => { const ins = document.querySelectorAll('.crow input'); ins[ins.length - 1]?.focus(); }, 0);
-      } }, icon(c), el('span', { textContent: c.label + (c.key === 'kabutar' ? ' · yaqinda' : '') })))));
+      } }, icon(c), el('span', { textContent: c.label })))));
     if (!list.length) main.append(el('div', { className: 'note', textContent: 'Hali aloqa qo‘shilmagan.' }));
     list.forEach((o, i) => {
       const c = C.byKey[o.type];

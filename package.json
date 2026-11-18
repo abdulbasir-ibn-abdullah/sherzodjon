@@ -1,0 +1,10 @@
+{
+  "name": "sherzodjon",
+  "version": "1.0.0",
+  "description": "Shoir va yozuvchi uchun shaxsiy sayt (admin panel bilan)",
+  "license": "MIT",
+  "private": true,
+  "type": "commonjs",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}

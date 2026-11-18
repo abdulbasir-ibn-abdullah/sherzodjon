@@ -1,0 +1,140 @@
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, props = {}, ...kids) => {
+    const e = Object.assign(document.createElement(tag), props);
+    kids.flat().forEach((k) => e.append(k));
+    return e;
+  };
+
+  // Bo'limlar va maydonlar tavsifi
+  const SECTIONS = {
+    site: { title: 'Asosiy ma’lumotlar' },
+    poems: { title: 'She’rlar', single: 'She’r', fields: [
+      ['title', 'Sarlavha'], ['date', 'Sana / yil', 'short'], ['text', 'She’r matni', 'area', 12]] },
+    books: { title: 'Kitoblar', single: 'Kitob', fields: [
+      ['title', 'Nomi'], ['year', 'Yil', 'short'], ['description', 'Tavsif', 'area', 4],
+      ['cover', 'Muqova rasmi', 'image'], ['link', 'Havola (ixtiyoriy)', 'url']] },
+    news: { title: 'Yangiliklar', single: 'Yangilik', fields: [
+      ['title', 'Sarlavha'], ['date', 'Sana', 'date'], ['text', 'Matn', 'area', 8], ['image', 'Rasm', 'image']] },
+  };
+  const SITE_FIELDS = [
+    ['name', 'Ism-familiya'], ['role', 'Kasbi (masalan: Shoir va yozuvchi)'], ['tagline', 'Bosh sahifadagi qisqa so‘z', 'area', 2],
+    ['heroImage', 'Bosh sahifadagi rasm (portret)', 'image'],
+    ['aboutTitle', '“Haqida” bo‘limi sarlavhasi'], ['about', 'O‘zi haqida (bo‘sh qator = yangi abzas)', 'area', 10],
+    ['quote', 'Sevimli iqtibos / epigraf', 'area', 2],
+    ['email', 'Email'], ['telegram', 'Telegram havolasi (https://t.me/...)', 'url'], ['instagram', 'Instagram havolasi', 'url'],
+    ['facebook', 'Facebook havolasi', 'url'], ['youtube', 'YouTube havolasi', 'url'],
+  ];
+
+  let data = null, tab = 'site', dirty = false;
+
+  async function api(url, opts = {}) {
+    const r = await fetch(url, { credentials: 'same-origin', ...opts });
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 401 && url !== '/api/login') { showLogin(); throw new Error('Qayta kiring'); }
+    if (!r.ok) throw new Error(j.error || 'Xatolik');
+    return j;
+  }
+  function status(msg, cls = '') { const s = $('status'); s.textContent = msg; s.className = 'status ' + cls; }
+  function markDirty() { dirty = true; status('Saqlanmagan o‘zgarishlar', 'dirty'); }
+
+  // ----- Maydon yaratish -----
+  function field(obj, [key, label, type, rows]) {
+    const wrap = el('label', { className: 'field' }, el('span', { textContent: label }));
+    if (type === 'image') {
+      const img = el('div', { className: 'img-field' });
+      const render = () => {
+        img.replaceChildren(
+          obj[key] ? el('img', { src: obj[key], alt: '' }) : el('div', { className: 'ph', textContent: 'rasm yo‘q' }),
+          el('div', { className: 'img-actions' },
+            el('button', { type: 'button', className: 'btn small', textContent: obj[key] ? 'Almashtirish' : 'Rasm yuklash', onclick: () => pick() }),
+            obj[key] ? el('button', { type: 'button', className: 'btn small danger', textContent: 'O‘chirish', onclick: () => { obj[key] = ''; markDirty(); render(); } }) : ''));
+      };
+      const pick = () => {
+        const inp = el('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp,image/gif' });
+        inp.onchange = async () => {
+          const f = inp.files[0]; if (!f) return;
+          status('Rasm yuklanmoqda…');
+          try {
+            const j = await api('/api/upload', { method: 'POST', body: f });
+            obj[key] = j.url; markDirty(); render();
+          } catch (e) { status(e.message, 'bad'); }
+        };
+        inp.click();
+      };
+      render();
+      return el('div', { className: 'field' }, el('span', { textContent: label }), img);
+    }
+    const input = type === 'area'
+      ? el('textarea', { rows: rows || 4, value: obj[key] || '' })
+      : el('input', { type: type === 'date' ? 'date' : type === 'url' ? 'url' : 'text', value: obj[key] || '' });
+    if (type === 'area') input.style.minHeight = (rows || 4) * 26 + 'px';
+    input.oninput = () => { obj[key] = input.value; markDirty(); };
+    wrap.append(input);
+    return wrap;
+  }
+  const grid = (fields, obj) => {
+    const out = []; let i = 0;
+    while (i < fields.length) {
+      if (fields[i][2] === 'short' && fields[i + 1] && fields[i + 1][2] !== 'area') {
+        out.push(el('div', { className: 'row2' }, field(obj, fields[i]), field(obj, fields[i + 1]))); i += 2;
+      } else out.push(field(obj, fields[i++]));
+    }
+    return out;
+  };
+
+  // ----- Ko'rinishlar -----
+  function render() {
+    $('tabs').replaceChildren(...Object.entries(SECTIONS).map(([k, v]) =>
+      el('button', { className: k === tab ? 'on' : '', textContent: v.title + (k !== 'site' ? ` (${data[k].length})` : ''), onclick: () => { tab = k; render(); } })));
+    const main = $('main'); main.replaceChildren();
+    if (tab === 'site') {
+      main.append(el('div', { className: 'item' }, ...grid(SITE_FIELDS, data.site)));
+      return;
+    }
+    const sec = SECTIONS[tab], list = data[tab];
+    main.append(el('div', { className: 'h2' }, el('h2', { textContent: sec.title }),
+      el('button', { className: 'btn primary', textContent: '+ ' + sec.single + ' qo‘shish', onclick: () => {
+        const o = { id: 'i' + Date.now().toString(36) };
+        sec.fields.forEach(([k]) => (o[k] = ''));
+        if (tab === 'news') o.date = new Date().toISOString().slice(0, 10);
+        list.unshift(o); markDirty(); render();
+      } })));
+    if (!list.length) main.append(el('div', { className: 'note', textContent: 'Hozircha hech narsa yo‘q. Yuqoridagi tugma orqali qo‘shing.' }));
+    list.forEach((o, i) => {
+      const move = (d) => { const j = i + d; if (j < 0 || j >= list.length) return; [list[i], list[j]] = [list[j], list[i]]; markDirty(); render(); };
+      main.append(el('div', { className: 'item' },
+        el('div', { className: 'item-head' }, el('b', { textContent: o.title || 'Nomsiz ' + sec.single.toLowerCase() }),
+          el('button', { className: 'btn small', textContent: '↑', title: 'Yuqoriga', onclick: () => move(-1) }),
+          el('button', { className: 'btn small', textContent: '↓', title: 'Pastga', onclick: () => move(1) }),
+          el('button', { className: 'btn small danger', textContent: 'O‘chirish', onclick: () => {
+            if (confirm('Rostdan ham o‘chirmoqchimisiz?')) { list.splice(i, 1); markDirty(); render(); }
+          } })),
+        ...grid(sec.fields, o)));
+    });
+  }
+
+  async function save() {
+    status('Saqlanmoqda…');
+    try { data = await api('/api/content', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); dirty = false; status('Saqlandi ✓', 'ok'); render(); }
+    catch (e) { status(e.message, 'bad'); }
+  }
+
+  function showLogin() { $('app').hidden = true; $('login').hidden = false; }
+  async function start() {
+    data = await (await fetch('/api/content')).json();
+    $('login').hidden = true; $('app').hidden = false; status(''); render();
+  }
+
+  $('loginForm').onsubmit = async (e) => {
+    e.preventDefault(); $('loginErr').textContent = '';
+    try { await api('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('pw').value }) }); $('pw').value = ''; start(); }
+    catch (err) { $('loginErr').textContent = err.message; }
+  };
+  $('save').onclick = save;
+  $('logout').onclick = async () => { await api('/api/logout', { method: 'POST' }); location.reload(); };
+  addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+  addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's' && !$('app').hidden) { e.preventDefault(); save(); } });
+
+  api('/api/me').then((m) => (m.auth ? start() : showLogin()));
+})();

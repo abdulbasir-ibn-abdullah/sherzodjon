@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin panel</title>
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+<div id="login" class="login" hidden>
+  <form id="loginForm" class="panel">
+    <h1>Admin panel</h1>
+    <p class="muted">Davom etish uchun parolni kiriting</p>
+    <input type="password" id="pw" placeholder="Parol" autocomplete="current-password" required autofocus>
+    <button class="btn primary">Kirish</button>
+    <p class="err" id="loginErr"></p>
+    <a href="/" class="muted">← Saytga qaytish</a>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <header class="top">
+    <strong>Admin panel</strong>
+    <span class="status" id="status"></span>
+    <a class="btn" href="/" target="_blank">Saytni ko‘rish ↗</a>
+    <button class="btn primary" id="save">Saqlash</button>
+    <button class="btn" id="logout">Chiqish</button>
+  </header>
+  <div class="layout">
+    <nav class="tabs" id="tabs"></nav>
+    <main id="main"></main>
+  </div>
+</div>
+<script src="/admin/admin.js"></script>
+</body>
+</html>

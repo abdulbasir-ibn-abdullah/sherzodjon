@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+const CONTACT_KEYS = new Set(require('./public/contacts.js').LIST.map((c) => c.key));
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const PUBLIC = path.join(ROOT, 'public');
@@ -38,7 +39,22 @@ function loadContent() {
   try { d = JSON.parse(fs.readFileSync(DATA, 'utf8')); }
   catch { d = JSON.parse(fs.readFileSync(DEFAULT, 'utf8')); }
   d.media = d.media || [];
+  if (!Array.isArray(d.contacts)) { // eski maydonlardan ko'chirish
+    d.contacts = [];
+    for (const k of ['telegram', 'instagram', 'facebook', 'youtube']) if (d.site[k]) d.contacts.push({ id: 'c' + k, type: k, value: d.site[k] });
+    if (d.site.email) d.contacts.unshift({ id: 'cemail', type: 'email', value: d.site.email });
+  }
+  for (const k of ['email', 'telegram', 'instagram', 'facebook', 'youtube']) delete d.site[k];
   return d;
+}
+// Hech qayerda ishlatilmayotgan (1 soatdan eski) yuklangan fayllarni o'chiradi
+function cleanUploads(content) {
+  const used = new Set(JSON.stringify(content).match(/\/uploads\/[\w.-]+/g) || []);
+  for (const f of fs.readdirSync(UPLOADS)) {
+    if (f.startsWith('.') || used.has('/uploads/' + f)) continue;
+    const fp = path.join(UPLOADS, f);
+    try { if (Date.now() - fs.statSync(fp).mtimeMs > 3600e3) fs.unlinkSync(fp); } catch {}
+  }
 }
 function saveContent(obj) {
   fs.mkdirSync(path.dirname(DATA), { recursive: true });
@@ -65,6 +81,7 @@ function sanitize(input) {
     media: list(input.media, [['title', 200], ['type', 10], ['description', 1000], ['src', 500]]).map((m) => ({
       ...m, type: ['image', 'video', 'audio'].includes(m.type) ? m.type : 'image',
     })),
+    contacts: list(input.contacts, [['type', 30], ['value', 300]]).filter((c) => CONTACT_KEYS.has(c.type) && c.value.trim()),
     news: list(input.news, [['title', 200], ['date', 40], ['text', 20000], ['image', 300]]),
   };
 }
@@ -233,6 +250,7 @@ const server = http.createServer(async (req, res) => {
         catch (e) { return send(res, e.code || 400, { error: e.message || 'Noto‘g‘ri JSON' }); }
         const clean = sanitize(obj || {});
         saveContent(clean);
+        try { cleanUploads(clean); } catch {}
         return send(res, 200, clean);
       }
       if (p === '/api/upload' && req.method === 'POST') {

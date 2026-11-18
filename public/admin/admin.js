@@ -17,6 +17,7 @@
     media: { title: 'Media', single: 'Media', fields: [
       ['type', 'Turi', 'type'], ['title', 'Nomi'], ['description', 'Tavsif (ixtiyoriy)', 'area', 2],
       ['src', 'Fayl yoki havola', 'file']] },
+    contacts: { title: 'Aloqa', single: 'Aloqa' },
     news: { title: 'Yangiliklar', single: 'Yangilik', fields: [
       ['title', 'Sarlavha'], ['date', 'Sana', 'date'], ['text', 'Matn', 'area', 8], ['image', 'Rasm', 'image']] },
   };
@@ -25,8 +26,6 @@
     ['heroImage', 'Bosh sahifadagi rasm (portret)', 'image'],
     ['aboutTitle', '“Haqida” bo‘limi sarlavhasi'], ['about', 'O‘zi haqida (bo‘sh qator = yangi abzas)', 'area', 10],
     ['quote', 'Sevimli iqtibos / epigraf', 'area', 2],
-    ['email', 'Email'], ['telegram', 'Telegram havolasi (https://t.me/...)', 'url'], ['instagram', 'Instagram havolasi', 'url'],
-    ['facebook', 'Facebook havolasi', 'url'], ['youtube', 'YouTube havolasi', 'url'],
   ];
 
   let data = null, tab = 'site', dirty = false;
@@ -125,6 +124,7 @@
       main.append(el('div', { className: 'item' }, ...grid(SITE_FIELDS, data.site)));
       return;
     }
+    if (tab === 'contacts') return renderContacts(main);
     const sec = SECTIONS[tab], list = data[tab];
     main.append(el('div', { className: 'h2' }, el('h2', { textContent: sec.title }),
       el('button', { className: 'btn primary', textContent: '+ ' + sec.single + ' qo‘shish', onclick: () => {
@@ -144,6 +144,34 @@
             if (confirm('Rostdan ham o‘chirmoqchimisiz?')) { list.splice(i, 1); markDirty(); render(); }
           } })),
         ...grid(sec.fields, o)));
+    });
+  }
+
+  const icon = (c) => {
+    const ns = 'http://www.w3.org/2000/svg', v = document.createElementNS(ns, 'svg'), p = document.createElementNS(ns, 'path');
+    v.setAttribute('viewBox', '0 0 24 24'); p.setAttribute('d', c.path); p.setAttribute('fill', c.color); v.append(p); return v;
+  };
+  function renderContacts(main) {
+    const list = data.contacts, C = CONTACTS;
+    main.append(el('div', { className: 'h2' }, el('h2', { textContent: 'Aloqa' })),
+      el('div', { className: 'note', textContent: 'Qo‘shmoqchi bo‘lgan platformani tanlang — faqat to‘ldirilganlari saytda ko‘rinadi. Foydalanuvchi nomi (@nom), raqam yoki to‘liq havola yozishingiz mumkin.' }));
+    main.append(el('div', { className: 'picker' }, ...C.LIST.map((c) =>
+      el('button', { type: 'button', className: 'pick', title: c.label + ' qo‘shish', onclick: () => {
+        list.push({ id: 'c' + Date.now().toString(36), type: c.key, value: '' }); markDirty(); render();
+        setTimeout(() => { const ins = document.querySelectorAll('.crow input'); ins[ins.length - 1]?.focus(); }, 0);
+      } }, icon(c), el('span', { textContent: c.label + (c.key === 'kabutar' ? ' · yaqinda' : '') })))));
+    if (!list.length) main.append(el('div', { className: 'note', textContent: 'Hali aloqa qo‘shilmagan.' }));
+    list.forEach((o, i) => {
+      const c = C.byKey[o.type];
+      const input = el('input', { type: 'text', value: o.value, placeholder: c.placeholder });
+      input.oninput = () => { o.value = input.value; markDirty(); };
+      const sel = el('select', {}, ...C.LIST.map((x) => el('option', { value: x.key, textContent: x.label })));
+      sel.value = o.type; sel.onchange = () => { o.type = sel.value; markDirty(); render(); };
+      const move = (d) => { const j = i + d; if (j < 0 || j >= list.length) return; [list[i], list[j]] = [list[j], list[i]]; markDirty(); render(); };
+      main.append(el('div', { className: 'item crow' }, el('div', { className: 'cico' }, icon(c)), sel, input,
+        el('button', { className: 'btn small', textContent: '↑', onclick: () => move(-1) }),
+        el('button', { className: 'btn small', textContent: '↓', onclick: () => move(1) }),
+        el('button', { className: 'btn small danger', textContent: 'O‘chirish', onclick: () => { list.splice(i, 1); markDirty(); render(); } })));
     });
   }
 

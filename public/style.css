@@ -63,9 +63,14 @@ blockquote:empty{display:none}
 .book p,.newsitem p{margin:8px 0 0;color:var(--muted);font-size:.95rem}
 .newsitem img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
 .newsitem{cursor:pointer}
-.links{display:flex;flex-wrap:wrap;gap:12px}
-.links a{padding:12px 22px;border:1px solid var(--line);border-radius:999px;text-decoration:none;background:var(--card);transition:.2s}
-.links a:hover{border-color:var(--accent);color:var(--accent)}
+.links{display:flex;flex-wrap:wrap;gap:14px}
+.chip{display:flex;align-items:center;gap:12px;padding:10px 20px 10px 10px;border:1px solid var(--line);border-radius:999px;text-decoration:none;background:var(--card);color:var(--ink);font:inherit;cursor:pointer;transition:.2s}
+.chip:hover{border-color:var(--brand,var(--accent));transform:translateY(-2px);box-shadow:var(--shadow)}
+.chip .ico{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--brand,var(--accent)) 14%,transparent)}
+.chip svg{width:22px;height:22px;fill:var(--brand,var(--accent))}
+:root[data-theme=dark] .chip svg{filter:brightness(1.35)}
+.chip .txt{display:grid;text-align:left;line-height:1.25}
+.chip small{color:var(--muted);font-size:.8rem}
 .footer{margin-top:120px;padding:28px 24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;color:var(--muted);font-size:.88rem;max-width:1180px;margin-inline:auto}
 .admin-link{text-decoration:none;opacity:.6}.admin-link:hover{opacity:1}
 

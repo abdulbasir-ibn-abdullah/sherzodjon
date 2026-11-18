@@ -2,6 +2,8 @@
 
 Zamonaviy, bir sahifali shaxsiy sayt (och/to‘q mavzu, mobilga moslashgan) va **admin panel** — barcha matn, she’r, kitob, yangilik va rasmlar (jumladan bosh sahifadagi portret) panel orqali kiritiladi.
 
+**Aloqa**: 18 ta platforma (Telegram, Instagram, telefon, WhatsApp, Facebook, imo, Kabutar, Threads, X, YouTube, TikTok va h.k.) ikonlar bilan — admin paneldan tanlanadi, to‘ldirilganlari saytda chiqadi. Brend ikonlari: simple-icons (CC0).
+
 **Media** bo‘limi: rasm (kattalashtirib ko‘rish), video va audio playerlar; yorliqlar orqali tur tanlanadi. Video uchun YouTube havolasi ham mumkin.
 
 Hech qanday tashqi paket kerak emas — faqat Node.js 18+.

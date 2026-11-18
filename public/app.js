@@ -64,6 +64,70 @@
       c.append(cover, body);
       $('bookList').append(c);
     });
+    // Media (yorliqlar: rasm / video / audio)
+    const KINDS = [['image', 'Rasmlar'], ['video', 'Videolar'], ['audio', 'Audiolar']];
+    const yt = (u) => { const m = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/.exec(u); return m ? m[1] : null; };
+    const mediaSrc = (u) => (u.startsWith('/uploads/') ? u : safeUrl(u));
+    const items = (d.media || []).filter((m) => mediaSrc(m.src));
+    const kinds = KINDS.filter(([k]) => items.some((m) => m.type === k));
+    const panel = $('mediaPanel'), tabs = $('mediaTabs');
+    function showKind(kind) {
+      [...tabs.children].forEach((t) => t.setAttribute('aria-selected', t.dataset.kind === kind));
+      panel.replaceChildren();
+      const list = items.filter((m) => m.type === kind);
+      if (kind === 'image') {
+        const g = el('div', 'gallery');
+        list.forEach((m) => {
+          const b = el('button', 'shot'); b.type = 'button';
+          const i = new Image(); i.src = mediaSrc(m.src); i.alt = m.title || ''; i.loading = 'lazy';
+          b.append(i); if (m.title) b.append(el('span', null, m.title));
+          b.onclick = () => lightbox(mediaSrc(m.src), m.title);
+          g.append(b);
+        });
+        panel.append(g);
+      } else if (kind === 'video') {
+        const g = el('div', 'videos');
+        list.forEach((m) => {
+          const c = el('article', 'card vid'), f = el('div', 'frame'), id = yt(m.src);
+          if (id) {
+            const fr = document.createElement('iframe');
+            fr.src = `https://www.youtube-nocookie.com/embed/${id}`; fr.loading = 'lazy'; fr.title = m.title || 'Video';
+            fr.allow = 'accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen'; fr.allowFullscreen = true;
+            fr.referrerPolicy = 'strict-origin-when-cross-origin'; f.append(fr);
+          } else {
+            const v = document.createElement('video'); v.controls = true; v.preload = 'metadata'; v.playsInline = true; v.src = mediaSrc(m.src); f.append(v);
+          }
+          const b = el('div', 'body'); b.append(el('h3', null, m.title || 'Video'));
+          if (m.description) b.append(el('p', null, m.description));
+          c.append(f, b); g.append(c);
+        });
+        panel.append(g);
+      } else {
+        const g = el('div', 'audios');
+        list.forEach((m) => {
+          const c = el('article', 'card aud');
+          const a = document.createElement('audio'); a.controls = true; a.preload = 'none'; a.src = mediaSrc(m.src);
+          c.append(el('h3', null, m.title || 'Audio'));
+          if (m.description) c.append(el('p', null, m.description));
+          c.append(a); g.append(c);
+        });
+        panel.append(g);
+      }
+      // Boshqa yorliqqa o'tganda ijro to'xtaydi (panel qayta quriladi)
+    }
+    function lightbox(src, alt) {
+      open((b) => { const i = new Image(); i.src = src; i.alt = alt || ''; b.append(i); if (alt) b.append(el('div', 'meta', alt)); });
+    }
+    kinds.forEach(([k, label], n) => {
+      const t = el('button', 'tab', label); t.type = 'button'; t.role = 'tab'; t.dataset.kind = k;
+      t.append(el('small', null, String(items.filter((m) => m.type === k).length)));
+      t.onclick = () => { history.replaceState(null, '', '#media'); showKind(k); };
+      tabs.append(t);
+    });
+    if (kinds.length) { showKind(kinds[0][0]); $('media').hidden = false; $('mediaBtn').hidden = false; }
+    const na = document.querySelector('nav a[data-sec="media"]'); if (na) na.hidden = !kinds.length;
+    if (location.hash === '#media' && kinds.length) $('media').scrollIntoView();
+
     // Yangiliklar
     d.news.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).forEach((n) => {
       const c = el('article', 'card newsitem');

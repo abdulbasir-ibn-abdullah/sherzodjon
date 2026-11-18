@@ -18,6 +18,7 @@
     <a href="#about">Haqida</a>
     <a href="#poems" data-sec="poems">She’rlar</a>
     <a href="#books" data-sec="books">Kitoblar</a>
+    <a href="#media" data-sec="media">Media</a>
     <a href="#news" data-sec="news">Yangiliklar</a>
     <a href="#contact">Aloqa</a>
   </nav>
@@ -32,6 +33,7 @@
       <p class="tagline" id="tagline"></p>
       <div class="cta">
         <a class="btn primary" href="#poems">She’rlarni o‘qish</a>
+        <a class="btn" href="#media" id="mediaBtn" hidden>▶ Media</a>
         <a class="btn" href="#contact">Bog‘lanish</a>
       </div>
     </div>
@@ -52,6 +54,12 @@
   <section id="books" class="wrap" hidden>
     <h2>Kitoblar</h2>
     <div class="grid books" id="bookList"></div>
+  </section>
+
+  <section id="media" class="wrap" hidden>
+    <h2>Media</h2>
+    <div class="tabs" role="tablist" id="mediaTabs"></div>
+    <div id="mediaPanel" role="tabpanel"></div>
   </section>
 
   <section id="news" class="wrap" hidden>

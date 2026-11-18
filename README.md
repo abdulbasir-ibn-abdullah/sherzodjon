@@ -2,6 +2,8 @@
 
 Zamonaviy, bir sahifali shaxsiy sayt (och/to‘q mavzu, mobilga moslashgan) va **admin panel** — barcha matn, she’r, kitob, yangilik va rasmlar (jumladan bosh sahifadagi portret) panel orqali kiritiladi.
 
+**Media** bo‘limi: rasm (kattalashtirib ko‘rish), video va audio playerlar; yorliqlar orqali tur tanlanadi. Video uchun YouTube havolasi ham mumkin.
+
 Hech qanday tashqi paket kerak emas — faqat Node.js 18+.
 
 ## Ishga tushirish
@@ -17,7 +19,7 @@ Muhit o‘zgaruvchilari: `ADMIN_PASSWORD`, `PORT` (3000), `SESSION_SECRET` (ixti
 
 ## Ma’lumotlar
 - `data/content.json` — admin paneldan saqlanadi (yo‘q bo‘lsa `data/default.json` ishlatiladi)
-- `uploads/` — yuklangan rasmlar (JPG/PNG/WEBP/GIF, ≤ 8 MB)
+- `uploads/` — yuklangan fayllar: rasm (≤ 8 MB), audio MP3/OGG/WAV/M4A (≤ 60 MB), video MP4/WEBM (≤ 300 MB)
 
 Ikkalasini ham zaxiralab turing. Internetga chiqarganda HTTPS (masalan, Caddy/nginx orqasida) ishlating.
 

@@ -14,6 +14,9 @@
     books: { title: 'Kitoblar', single: 'Kitob', fields: [
       ['title', 'Nomi'], ['year', 'Yil', 'short'], ['description', 'Tavsif', 'area', 4],
       ['cover', 'Muqova rasmi', 'image'], ['link', 'Havola (ixtiyoriy)', 'url']] },
+    media: { title: 'Media', single: 'Media', fields: [
+      ['type', 'Turi', 'type'], ['title', 'Nomi'], ['description', 'Tavsif (ixtiyoriy)', 'area', 2],
+      ['src', 'Fayl yoki havola', 'file']] },
     news: { title: 'Yangiliklar', single: 'Yangilik', fields: [
       ['title', 'Sarlavha'], ['date', 'Sana', 'date'], ['text', 'Matn', 'area', 8], ['image', 'Rasm', 'image']] },
   };
@@ -64,6 +67,36 @@
       };
       render();
       return el('div', { className: 'field' }, el('span', { textContent: label }), img);
+    }
+    if (type === 'type') {
+      const sel = el('select', {}, ...[['image', 'Rasm'], ['video', 'Video'], ['audio', 'Audio']].map(([v, t]) => el('option', { value: v, textContent: t })));
+      sel.value = obj[key] || 'image';
+      obj[key] = sel.value;
+      sel.onchange = () => { obj[key] = sel.value; markDirty(); render(); };
+      return el('label', { className: 'field' }, el('span', { textContent: label }), sel);
+    }
+    if (type === 'file') {
+      const kind = obj.type || 'image';
+      const url = el('input', { type: 'text', value: obj[key] || '', placeholder: kind === 'video' ? 'Fayl yuklang yoki YouTube / to‘g‘ridan-to‘g‘ri havola qo‘ying' : 'Fayl yuklang yoki havola qo‘ying (https://...)' });
+      url.oninput = () => { obj[key] = url.value; markDirty(); };
+      const accept = { image: 'image/*', video: 'video/mp4,video/webm', audio: 'audio/mpeg,audio/ogg,audio/wav,audio/mp4' }[kind];
+      const btn = el('button', { type: 'button', className: 'btn small', textContent: 'Fayl yuklash', onclick: () => {
+        const inp = el('input', { type: 'file', accept });
+        inp.onchange = async () => {
+          const f = inp.files[0]; if (!f) return;
+          status(`Yuklanmoqda (${(f.size / 1048576).toFixed(1)} MB)…`);
+          try {
+            const j = await api('/api/upload', { method: 'POST', body: f });
+            if (j.kind !== kind) throw new Error(`Bu fayl ${j.kind} turida, tanlangan tur: ${kind}`);
+            obj[key] = j.url; markDirty(); render(); status('Yuklandi ✓ — saqlashni unutmang', 'dirty');
+          } catch (e) { status(e.message, 'bad'); }
+        };
+        inp.click();
+      } });
+      const preview = !obj[key] ? '' : kind === 'image' ? el('img', { src: obj[key], alt: '', style: 'max-width:160px;border-radius:8px' })
+        : kind === 'audio' ? el('audio', { src: obj[key], controls: true, style: 'width:100%' })
+        : /^\/uploads\//.test(obj[key]) ? el('video', { src: obj[key], controls: true, preload: 'metadata', style: 'max-width:280px;border-radius:8px' }) : '';
+      return el('div', { className: 'field' }, el('span', { textContent: label }), url, el('div', { className: 'img-actions' }, btn), preview);
     }
     const input = type === 'area'
       ? el('textarea', { rows: rows || 4, value: obj[key] || '' })

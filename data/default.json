@@ -19,6 +19,7 @@
   "poems": [
     { "id": "p1", "title": "Tong she’ri", "date": "2025", "text": "Tong otdi, dilimda nur uyg‘ondi,\nSo‘zlarim qanot qoqib osmonga qo‘ndi.\nBu — namuna she’r.\nAdmin paneldan o‘zingiznikini kiriting." }
   ],
+  "media": [],
   "news": [
     { "id": "n1", "title": "Sayt ishga tushdi", "date": "2026-01-01", "text": "Yangi shaxsiy saytimga xush kelibsiz!", "image": "" }
   ]

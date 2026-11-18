@@ -12,7 +12,7 @@ const UPLOADS = path.join(ROOT, 'uploads');
 const DATA = path.join(ROOT, 'data', 'content.json');
 const DEFAULT = path.join(ROOT, 'data', 'default.json');
 const MAX_JSON = 1024 * 1024;
-const MAX_IMG = 8 * 1024 * 1024;
+const LIMITS = { image: 8 * 1024 * 1024, audio: 60 * 1024 * 1024, video: 300 * 1024 * 1024 };
 
 // Parol va sessiya kaliti. Ishlab chiqarishda ADMIN_PASSWORD ni albatta o'zgartiring!
 const PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
@@ -25,14 +25,20 @@ const MIME = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-  '.webp': 'image/webp', '.gif': 'image/gif', '.ico': 'image/x-icon',
+  '.webp': 'image/webp', '.mp4': 'video/mp4', '.webm': 'video/webm', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.m4a': 'audio/mp4', '.gif': 'image/gif', '.ico': 'image/x-icon',
 };
-const IMG_EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };
+const EXT = {
+  'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif',
+  'video/mp4': '.mp4', 'video/webm': '.webm', 'audio/mpeg': '.mp3', 'audio/ogg': '.ogg', 'audio/wav': '.wav', 'audio/mp4': '.m4a',
+};
 
 // ---------- Ma'lumotlar ----------
 function loadContent() {
-  try { return JSON.parse(fs.readFileSync(DATA, 'utf8')); }
-  catch { return JSON.parse(fs.readFileSync(DEFAULT, 'utf8')); }
+  let d;
+  try { d = JSON.parse(fs.readFileSync(DATA, 'utf8')); }
+  catch { d = JSON.parse(fs.readFileSync(DEFAULT, 'utf8')); }
+  d.media = d.media || [];
+  return d;
 }
 function saveContent(obj) {
   fs.mkdirSync(path.dirname(DATA), { recursive: true });
@@ -56,6 +62,9 @@ function sanitize(input) {
     site,
     books: list(input.books, [['title', 200], ['year', 20], ['description', 3000], ['cover', 300], ['link', 500]]),
     poems: list(input.poems, [['title', 200], ['date', 40], ['text', 20000]]),
+    media: list(input.media, [['title', 200], ['type', 10], ['description', 1000], ['src', 500]]).map((m) => ({
+      ...m, type: ['image', 'video', 'audio'].includes(m.type) ? m.type : 'image',
+    })),
     news: list(input.news, [['title', 200], ['date', 40], ['text', 20000], ['image', 300]]),
   };
 }
@@ -107,25 +116,76 @@ function readBody(req, limit) {
     req.on('error', reject);
   });
 }
-function sniffImage(buf) {
+function sniff(buf) {
   if (buf.length < 12) return null;
+  const at = (o, t) => buf.slice(o, o + t.length).toString('latin1') === t;
   if (buf[0] === 0xff && buf[1] === 0xd8) return 'image/jpeg';
   if (buf.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
-  if (buf.slice(0, 4).toString() === 'RIFF' && buf.slice(8, 12).toString() === 'WEBP') return 'image/webp';
-  if (buf.slice(0, 3).toString() === 'GIF') return 'image/gif';
+  if (at(0, 'RIFF') && at(8, 'WEBP')) return 'image/webp';
+  if (at(0, 'RIFF') && at(8, 'WAVE')) return 'audio/wav';
+  if (at(0, 'GIF8')) return 'image/gif';
+  if (at(4, 'ftyp')) return at(8, 'M4A') ? 'audio/mp4' : 'video/mp4'; // mp4 / mov
+  if (buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3) return 'video/webm';
+  if (at(0, 'OggS')) return 'audio/ogg';
+  if (at(0, 'ID3') || (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0)) return 'audio/mpeg';
   return null;
+}
+// Faylni xotiraga to'liq yuklamasdan, diskka oqim bilan yozadi
+function saveUpload(req) {
+  return new Promise((resolve, reject) => {
+    let head = Buffer.alloc(0), out = null, type = null, limit = 0, size = 0, name, file, done = false;
+    const fail = (msg, code) => {
+      if (done) return; done = true;
+      if (out) { out.destroy(); fs.unlink(file, () => {}); }
+      req.resume();
+      reject(Object.assign(new Error(msg), { code }));
+    };
+    req.on('data', (c) => {
+      if (done) return;
+      size += c.length;
+      if (!out) {
+        head = Buffer.concat([head, c]);
+        if (head.length < 12) return;
+        type = sniff(head);
+        if (!type) return fail('Qo‘llab-quvvatlanmaydigan format (JPG, PNG, WEBP, GIF, MP4, WEBM, MP3, OGG, WAV, M4A)', 415);
+        limit = LIMITS[type.split('/')[0]];
+        fs.mkdirSync(UPLOADS, { recursive: true });
+        name = Date.now().toString(36) + crypto.randomBytes(4).toString('hex') + EXT[type];
+        file = path.join(UPLOADS, name);
+        out = fs.createWriteStream(file);
+        out.on('error', () => fail('Faylni yozib bo‘lmadi', 500));
+        c = head;
+      }
+      if (size > limit) return fail(`Fayl juda katta (maks. ${Math.round(limit / 1048576)} MB)`, 413);
+      out.write(c);
+    });
+    req.on('end', () => {
+      if (done) return;
+      if (!out) return fail('Fayl bo‘sh yoki noto‘g‘ri', 400);
+      out.end(() => { done = true; resolve({ url: '/uploads/' + name, kind: type.split('/')[0] }); });
+    });
+    req.on('error', () => fail('Yuklash uzildi', 400));
+  });
 }
 function serveFile(req, res, file, cache) {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) return send(res, 404, 'Topilmadi');
-    res.writeHead(200, {
+    const h = {
       'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
-      'Content-Length': st.size,
-      'Cache-Control': cache,
-      'X-Content-Type-Options': 'nosniff',
-    });
+      'Cache-Control': cache, 'X-Content-Type-Options': 'nosniff', 'Accept-Ranges': 'bytes',
+    };
+    let start = 0, end = st.size - 1, code = 200;
+    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    if (m && (m[1] || m[2])) { // video/audio ilgari-orqaga surish uchun
+      if (m[1]) { start = +m[1]; if (m[2]) end = Math.min(+m[2], end); }
+      else { start = Math.max(0, st.size - +m[2]); }
+      if (start > end || start >= st.size) { res.writeHead(416, { 'Content-Range': `bytes */${st.size}` }); return res.end(); }
+      code = 206; h['Content-Range'] = `bytes ${start}-${end}/${st.size}`;
+    }
+    h['Content-Length'] = end - start + 1;
+    res.writeHead(code, h);
     if (req.method === 'HEAD') return res.end();
-    fs.createReadStream(file).pipe(res);
+    fs.createReadStream(file, { start, end }).pipe(res);
   });
 }
 function within(base, rel) {
@@ -176,14 +236,8 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, clean);
       }
       if (p === '/api/upload' && req.method === 'POST') {
-        let buf;
-        try { buf = await readBody(req, MAX_IMG); } catch (e) { return send(res, e.code || 400, { error: e.message }); }
-        const type = sniffImage(buf);
-        if (!type) return send(res, 415, { error: 'Faqat JPG, PNG, WEBP yoki GIF rasm yuklash mumkin' });
-        fs.mkdirSync(UPLOADS, { recursive: true });
-        const name = Date.now().toString(36) + crypto.randomBytes(4).toString('hex') + IMG_EXT[type];
-        fs.writeFileSync(path.join(UPLOADS, name), buf);
-        return send(res, 200, { url: '/uploads/' + name });
+        try { return send(res, 200, await saveUpload(req)); }
+        catch (e) { return send(res, e.code || 400, { error: e.message }); }
       }
       return send(res, 404, { error: 'Topilmadi' });
     }
